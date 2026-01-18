@@ -99,10 +99,12 @@ function calculateSignature(
   signatureString += phrase;
 
   // Calculate SHA-256 hash
+  // PayFort requires uppercase hexadecimal format
   const hash = crypto
     .createHash("sha256")
     .update(signatureString)
-    .digest("hex");
+    .digest("hex")
+    .toUpperCase();
   return hash;
 }
 
@@ -148,6 +150,24 @@ async function generateSDKToken(deviceId: string): Promise<string> {
     PAYFORT_CONFIG.shaRequestPhrase
   );
 
+  // Debug: Log signature calculation details (remove in production)
+  if (process.env.NODE_ENV === "development") {
+    const sortedKeys = Object.keys(paramsForSignature).sort();
+    let debugSigString = PAYFORT_CONFIG.shaRequestPhrase;
+    sortedKeys.forEach((key) => {
+      debugSigString += `${key}=${paramsForSignature[key]}`;
+    });
+    debugSigString += PAYFORT_CONFIG.shaRequestPhrase;
+    console.log("Signature calculation debug:", {
+      sortedParams: sortedKeys.map((k) => `${k}=${paramsForSignature[k]}`),
+      signatureStringLength: debugSigString.length,
+      signatureLength: requestParams.signature.length,
+      signaturePreview: requestParams.signature.substring(0, 16) + "...",
+      isUppercase:
+        requestParams.signature === requestParams.signature.toUpperCase(),
+    });
+  }
+
   // Determine endpoint
   const endpoint =
     PAYFORT_CONFIG.environment === "PRODUCTION"
@@ -184,7 +204,12 @@ async function generateSDKToken(deviceId: string): Promise<string> {
   });
 
   // Check if request was successful
-  if (data.response_code !== "20000" || data.status !== "20") {
+  // PayFort success codes: 20000/20 or 22000/22
+  const isSuccess =
+    (data.response_code === "20000" && data.status === "20") ||
+    (data.response_code === "22000" && data.status === "22");
+
+  if (!isSuccess) {
     const errorMsg = `SDK Token generation failed: ${data.response_message} (${data.response_code})`;
     console.error("PayFort API error response:", data);
 
@@ -194,6 +219,20 @@ async function generateSDKToken(deviceId: string): Promise<string> {
         `${errorMsg}\n\n` +
           "This error indicates that the Mobile SDK channel is not configured in your PayFort merchant account.\n" +
           "Please contact PayFort support or check your Merchant Dashboard → Integration Settings → Channels to enable Mobile SDK."
+      );
+    }
+
+    // Signature mismatch error (common error codes: 00044, 00045)
+    if (data.response_code === "00044" || data.response_code === "00045") {
+      throw new Error(
+        `${errorMsg}\n\n` +
+          "This error indicates a signature mismatch. Common causes:\n" +
+          "1. Incorrect SHA Request Phrase - verify it matches your PayFort dashboard\n" +
+          "2. Parameters not sorted alphabetically\n" +
+          "3. Missing or extra parameters in signature calculation\n" +
+          "4. Case sensitivity issues\n" +
+          "5. Signature not in uppercase hexadecimal format\n\n" +
+          "Please verify your EXPO_PUBLIC_PAYFORT_SHA_REQUEST_PHRASE environment variable."
       );
     }
 
@@ -307,7 +346,10 @@ export async function POST(request: Request) {
       sdk_token: sdkToken,
     });
   } catch (error: any) {
-    console.error("SDK Token generation error:", error);
+    console.error(
+      "SDK Token generation error in POST /api/payfort/sdk-token:",
+      error
+    );
     console.error("Error stack:", error.stack);
     return Response.json(
       {

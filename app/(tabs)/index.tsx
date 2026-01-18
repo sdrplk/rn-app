@@ -107,11 +107,14 @@ export default function PaymentScreen() {
         // Fallback to direct API call for testing
         console.warn("API route failed, trying direct call:", apiError.message);
         const tokenResponse = await generateSDKToken(deviceId);
-        setSdkToken(tokenResponse.sdk_token);
+        setSdkToken(tokenResponse.sdk_token || "");
         Alert.alert("Success", "SDK Token generated successfully!");
       }
     } catch (err: any) {
-      console.error("SDK Token generation error:", err);
+      console.error(
+        "SDK Token generation error in handleGenerateSDKToken:",
+        err
+      );
       setError(err.message || "Failed to generate SDK token");
       Alert.alert(
         "SDK Token Generation Failed",

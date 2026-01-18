@@ -94,7 +94,10 @@ export const calculateSignature = (
   signatureString += phrase;
 
   // Calculate SHA-256 hash using crypto-js
-  const hash = CryptoJS.SHA256(signatureString).toString(CryptoJS.enc.Hex);
+  // PayFort requires uppercase hexadecimal format
+  const hash = CryptoJS.SHA256(signatureString)
+    .toString(CryptoJS.enc.Hex)
+    .toUpperCase();
   return hash;
 };
 
@@ -153,7 +156,12 @@ export const generateSDKToken = async (
   const data: SDKTokenResponse = await response.json();
 
   // Check if request was successful
-  if (data.response_code !== "20000" || data.status !== "20") {
+  // PayFort success codes: 20000/20 or 22000/22
+  const isSuccess =
+    (data.response_code === "20000" && data.status === "20") ||
+    (data.response_code === "22000" && data.status === "22");
+
+  if (!isSuccess) {
     let errorMsg = `SDK Token generation failed: ${data.response_message} (${data.response_code})`;
 
     // Provide helpful message for common errors
