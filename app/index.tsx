@@ -1,15 +1,11 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">Welcome!</ThemedText>
-      <ThemedText style={styles.subtitle}>
-        This is a simple React Native app built with Expo.
-      </ThemedText>
-    </ThemedView>
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome</Text>
+      <Text style={styles.subtitle}>React Native App</Text>
+    </View>
   );
 }
 
@@ -20,8 +16,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
   subtitle: {
-    marginTop: 16,
-    textAlign: 'center',
+    fontSize: 18,
+    opacity: 0.7,
   },
 });
